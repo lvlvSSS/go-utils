@@ -18,5 +18,18 @@ go.sum
 **/Logs/
 **/Logs
 
+# idea
+.idea/**
+.idea
+**/.idea/
+**/.idea
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+/local.properties
+*.iml
+
 # Dependency directories (remove the comment below to include it)
 # vendor/
