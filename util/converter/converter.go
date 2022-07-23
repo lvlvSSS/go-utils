@@ -1,6 +1,8 @@
 package converter
 
 import (
+	"bytes"
+	"encoding/binary"
 	"reflect"
 	"unsafe"
 )
@@ -28,4 +30,24 @@ func StringToBytes(s string) []byte {
 		Cap:  stringheader.Len,
 	}
 	return *(*[]byte)(unsafe.Pointer(&sh))
+}
+
+type Number interface {
+	bool | int8 | uint8 | int16 | uint16 | int32 | uint32 | int64 | uint64 | float32 | float64
+}
+
+func Int2Bytes[V Number](value V) []byte {
+	buffer := bytes.NewBuffer([]byte{})
+	binary.Write(buffer, binary.BigEndian, value)
+	return buffer.Bytes()
+}
+
+func Bytes2Int[V Number](b []byte, order binary.ByteOrder) (V, error) {
+	buffer := bytes.NewBuffer(b)
+	var value V
+	err := binary.Read(buffer, order, &value)
+	if nil != err {
+		return value, err
+	}
+	return value, nil
 }
