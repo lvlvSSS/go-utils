@@ -1,7 +1,7 @@
 package test
 
 import (
-	"go-utils/util/yaml"
+	"go-utils/yaml"
 	"os"
 	"path/filepath"
 	"testing"

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	Log "github.com/sirupsen/logrus"
-	util "go-utils/util/stack"
+	util "go-utils/stack"
 	"net"
 	"strings"
 	"sync"
