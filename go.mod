@@ -14,6 +14,8 @@ require (
 )
 
 require (
+	github.com/Chain-Zhang/pinyin v0.1.3 // indirect
+	github.com/deckarep/golang-set v1.8.0 // indirect
 	github.com/jonboulle/clockwork v0.3.0 // indirect
 	github.com/lestrrat-go/strftime v1.0.6 // indirect
 	go.uber.org/atomic v1.4.0 // indirect
