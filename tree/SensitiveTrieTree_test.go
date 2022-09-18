@@ -1,7 +1,6 @@
 package tree
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 )
@@ -18,57 +17,6 @@ func TestSensitiveTrieTree_filterChars(t *testing.T) {
 	if chars != targetStr {
 		t.Fail()
 	}
-}
-
-func trieDemo(sensitiveWords []string, matchContents []string) {
-
-	// 汉字转拼音
-	trie := NewSensitiveTrieTree()
-	trie.AddChineseWords(sensitiveWords)
-
-	//trie.AddWords(pinyinContents)
-	//for _, content := range contents {
-	//	trie.AddWord(content)
-	//}
-
-	for _, srcText := range matchContents {
-		matchSensitiveWords, replaceText, _ := trie.Match(srcText)
-		fmt.Println("srcText        -> ", srcText)
-		fmt.Println("replaceText    -> ", replaceText)
-		fmt.Println("sensitiveWords -> ", matchSensitiveWords)
-		fmt.Println()
-	}
-
-	// 动态添加
-	trie.AddWord("牛大大")
-	content := "今天，牛大大挑战灰大大"
-	matchSensitiveWords, replaceText, _ := trie.Match(content)
-	fmt.Println("srcText        -> ", content)
-	fmt.Println("replaceText    -> ", replaceText)
-	fmt.Println("sensitiveWords -> ", matchSensitiveWords)
-}
-
-func TestNewSensitiveTrieTree(t *testing.T) {
-
-	sensitiveWords := []string{
-		"傻逼",
-		"傻叉",
-		"垃圾",
-		"妈的",
-		"sb",
-	}
-
-	matchContents := []string{
-		"你是一个大傻&逼，大傻 叉",
-		"你是傻☺叉",
-		"shabi东西",
-		"他made东西",
-		"什么垃圾打野，傻逼一样，叫你来开龙不来，SB",
-		"正常的内容☺",
-	}
-
-	fmt.Println("\n--------- 前缀树匹配敏感词 ---------")
-	trieDemo(sensitiveWords, matchContents)
 }
 
 func TestSensitiveTrieTree_Match(t *testing.T) {
