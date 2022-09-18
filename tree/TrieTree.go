@@ -11,6 +11,7 @@ type TrieTree struct {
 }
 
 // AddChild - add the rune to the node as child.
+// Return the added child node.
 func (node *TrieNode) AddChild(c rune) *TrieNode {
 	if node.childNodes == nil {
 		node.childNodes = make(map[rune]*TrieNode)
