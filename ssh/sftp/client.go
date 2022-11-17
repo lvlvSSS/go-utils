@@ -8,7 +8,9 @@ import (
 	"golang.org/x/crypto/ssh"
 	"io"
 	"log"
+	"net"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -22,7 +24,7 @@ type Client struct {
 	host           string
 	port           int
 	sshClient      *ssh.Client
-	sftp.Client
+	*sftp.Client
 }
 
 func (client *Client) String() string {
@@ -30,8 +32,8 @@ func (client *Client) String() string {
 }
 
 func (client *Client) Close() {
-	client.Client.Close()
 	client.sshClient.Close()
+	client.Client.Close()
 }
 
 func Connect(host string, port int, certKeyFile string, password string, username string) (*Client, error) {
@@ -53,14 +55,22 @@ func Connect(host string, port int, certKeyFile string, password string, usernam
 		return nil, err
 	}
 
+	addrs := strings.Split(sshClient.RemoteAddr().String(), ":")
+	if len(addrs) != 2 {
+		return nil, errors.New(fmt.Sprintf("the host[%s] is not standard ", sshClient.RemoteAddr()))
+	}
+	port, err = strconv.Atoi(addrs[1])
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("the port of host[%s] is not integer", sshClient.RemoteAddr()))
+	}
 	return &Client{
 		username:    username,
 		certKeyFile: certKeyFile,
 		password:    password,
-		host:        host,
+		host:        addrs[0],
 		port:        port,
 		sshClient:   sshClient,
-		Client:      *sftpClient,
+		Client:      sftpClient,
 	}, nil
 }
 
@@ -90,14 +100,22 @@ func ConnectKnownHost(host string, port int, certKeyFile string, knownHostsFile 
 		return nil, err
 	}
 
+	addrs := strings.Split(sshClient.RemoteAddr().String(), ":")
+	if len(addrs) != 2 {
+		return nil, errors.New(fmt.Sprintf("the host[%s] is not standard ", sshClient.RemoteAddr()))
+	}
+	port, err = strconv.Atoi(addrs[1])
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("the port of host[%s] is not integer", sshClient.RemoteAddr()))
+	}
 	return &Client{
 		username:       username,
 		certKeyFile:    certKeyFile,
 		knownHostsFile: knownHostsFile,
-		host:           host,
+		host:           addrs[0],
 		port:           port,
 		sshClient:      sshClient,
-		Client:         *sftpClient,
+		Client:         sftpClient,
 	}, nil
 }
 
@@ -160,29 +178,34 @@ func NewClientConfigWithinKnownHosts(timeout time.Duration, username string, cer
 	}
 	authMethod = append(authMethod, ssh.PublicKeys(signer))
 
-	var hostKey ssh.PublicKey
-	scanner := bufio.NewScanner(knownHosts)
-	for scanner.Scan() {
-		fields := strings.Split(scanner.Text(), " ")
-		if len(fields) != 3 {
-			continue
-		}
-		if strings.Contains(fields[0], host) {
-			var err error
-			hostKey, _, _, _, err = ssh.ParseAuthorizedKey(scanner.Bytes())
-			if err != nil {
-				return nil, fmt.Errorf("error parsing %q: %w", fields[2], err)
-			}
-			break
-		}
-	}
-	if hostKey == nil {
-		return nil, errors.New(fmt.Sprintf("no host key for %s", host))
-	}
 	return &ssh.ClientConfig{
-		Timeout:         timeout,
-		User:            username,
-		Auth:            authMethod,
-		HostKeyCallback: ssh.FixedHostKey(hostKey),
+		Timeout: timeout,
+		User:    username,
+		Auth:    authMethod,
+		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			var hostKey ssh.PublicKey
+			scanner := bufio.NewScanner(knownHosts)
+			for scanner.Scan() {
+				fields := strings.Split(scanner.Text(), " ")
+				if len(fields) != 3 {
+					continue
+				}
+				if !strings.EqualFold(fields[1], key.Type()) {
+					continue
+				}
+				if strings.Contains(fields[0], host) {
+					var err error
+					hostKey, _, _, _, err = ssh.ParseAuthorizedKey(scanner.Bytes())
+					if err != nil {
+						return fmt.Errorf("error parsing %q: %w", fields[2], err)
+					}
+					break
+				}
+			}
+			if hostKey == nil {
+				return errors.New(fmt.Sprintf("no host key for %s", host))
+			}
+			return nil
+		},
 	}, nil
 }
