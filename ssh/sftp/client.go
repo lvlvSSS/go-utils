@@ -2,10 +2,12 @@ package sftp
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 	"io"
 	"log"
 	"net"
@@ -29,6 +31,10 @@ type Client struct {
 
 func (client *Client) String() string {
 	return fmt.Sprintf("%s@%s:%d", client.username, client.host, client.port)
+}
+
+func (client *Client) Host() string {
+	return client.host
 }
 
 func (client *Client) Close() {
@@ -160,12 +166,11 @@ func NewClientConfig(timeout time.Duration, username string, certKey io.Reader, 
 	}, nil
 }
 
-// NewClientConfigWithinKnownHosts - 返回的ssh.ClientConfig.HostKeyCallback 使用 ssh.FixedHostKey 来校验公钥是否正确。
+// NewClientConfigWithinKnownHosts - 返回的ssh.ClientConfig.HostKeyCallback 使用 自定义的函数 来校验公钥是否正确。
 // 这里使用ssh-keygen 命令生成的公钥和私钥进行登录ssh远程服务器.
 // 注意： 这里需要注意一个ssh的配置。配置在 /etc/ssh/ssh_config中.
-// 如果ssh_config中的 HashKnownHosts yes, 那么客户端 known_hosts 中的host key的服务器ip地址是经过哈希加密的。
-// 如果ssh_config中的 HashKnownHosts no, 那么客户端 known_hosts 中的host key的服务器ip地址就是明文的。
-// 因此，如果想使用该方法，需要将HashKnownHosts 置为no, 使用明文, 这样才能匹配到对应的host key 的ip地址。
+// 如果ssh_config中的 HashKnownHosts yes, 那么客户端 known_hosts 中的host key的服务器 ip地址/主机名 是经过哈希加密的。
+// 如果ssh_config中的 HashKnownHosts no, 那么客户端 known_hosts 中的host key的服务器 ip地址/主机名 就是明文的。
 func NewClientConfigWithinKnownHosts(timeout time.Duration, username string, certKey io.Reader, knownHosts io.Reader, host string) (*ssh.ClientConfig, error) {
 	authMethod := make([]ssh.AuthMethod, 0, 4)
 	key, err := io.ReadAll(certKey)
@@ -182,6 +187,11 @@ func NewClientConfigWithinKnownHosts(timeout time.Duration, username string, cer
 		Timeout: timeout,
 		User:    username,
 		Auth:    authMethod,
+		// 校验服务端返回的公钥信息是否和known_hosts文件中的公钥信息匹配.
+		// known_hosts文件中保存这host key, 每个host key 由3个部分组成.
+		// 1. 主机的ip地址/主机名.(ip地址有可能是经过哈希加密的. 是否加密, 由配置文件 /etc/ssh/ssh_config 的 HashKnownHosts 来决定. 如果为yes, 则进行加密. 否则不用加密.)
+		// 2. 加密方式
+		// 3. base64编码的公钥信息.
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 			var hostKey ssh.PublicKey
 			scanner := bufio.NewScanner(knownHosts)
@@ -193,7 +203,7 @@ func NewClientConfigWithinKnownHosts(timeout time.Duration, username string, cer
 				if !strings.EqualFold(fields[1], key.Type()) {
 					continue
 				}
-				if strings.Contains(fields[0], host) {
+				if isHostValid(fields[0], host) {
 					var err error
 					hostKey, _, _, _, err = ssh.ParseAuthorizedKey(scanner.Bytes())
 					if err != nil {
@@ -203,9 +213,44 @@ func NewClientConfigWithinKnownHosts(timeout time.Duration, username string, cer
 				}
 			}
 			if hostKey == nil {
-				return errors.New(fmt.Sprintf("no host key for %s", host))
+				return errors.New(fmt.Sprintf("no host key in known_hosts for %s", host))
 			}
 			return nil
 		},
 	}, nil
+}
+
+// isHostValid - 判断要需要远程到的host服务器主机名是否和known_hosts中的服务器主机名匹配
+// host - 用户输入要远程的服务器主机名
+// hostInKnownHosts - known_hosts中的服务器主机名(有可能经过哈希加密,是否加密取决于HashKnownHosts配置)
+func isHostValid(hostInKnownHosts string, host string) bool {
+	// 经过哈希加密的主机名, 由3部分组成：
+	// 1. sha的协议版本, 一般都是sha1,因此这里一般都是为 ’1‘
+	// 2. 给host进行加密的salt的base64编码
+	// 3. 加盐(salt)之后, host哈希加密后的base64编码
+	// 最后这3部分用字符 '|' 拼接起来. 详见 encodeHash
+	ver, salt, hash, err := decodeHash(hostInKnownHosts)
+	if err != nil {
+		// 解码失败，此时表示 hostInKnownHosts 不是哈希加密后的主机名
+		hostInKnownHosts = knownhosts.Normalize(hostInKnownHosts)
+		if len(hostInKnownHosts) == 0 {
+			return false
+		}
+		return strings.Contains(hostInKnownHosts, host)
+	}
+	// 解码成功，表示 hostInKnownHosts 是哈希加密后的主机名
+	encoded := hostInKnownHosts
+	// 重新拼接，做一次校验
+	if got := encodeHash(ver, salt, hash); got != encoded {
+		return false
+	}
+	// 判断sha的加密版本是否为sha1
+	if ver != sha1HashType {
+		return false
+	}
+	// 用相同的salt对host进行加密，来进行判断
+	if got := hashHost(host, salt); !bytes.Equal(got, hash) {
+		return false
+	}
+	return true
 }

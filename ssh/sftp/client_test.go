@@ -1,6 +1,8 @@
 package sftp
 
 import (
+	"bytes"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,4 +35,35 @@ func TestConnectKnownHost(t *testing.T) {
 	t.Logf("root : %s \n", strings.Join(root, " || "))
 	t.Logf("client : %s \n", client.String())
 	client.Close()
+}
+
+func TestHostHash(t *testing.T) {
+	testHostHash(t, "172.17.0.3", "|1|v3atYVzYo9koRFMa3PMTdL/XK20=|9CU9l8fFS276gpt2EEmy7ToSoFY=")
+}
+
+func testHostHash(t *testing.T, hostname, encoded string) {
+	typ, salt, hash, err := decodeHash(encoded)
+	if err != nil {
+		t.Fatalf("decodeHash: %v", err)
+	}
+
+	if got := encodeHash(typ, salt, hash); got != encoded {
+		t.Errorf("got encoding %s want %s", got, encoded)
+	}
+
+	if typ != sha1HashType {
+		t.Fatalf("got hash type %q, want %q", typ, sha1HashType)
+	}
+
+	got := hashHost(hostname, salt)
+	if !bytes.Equal(got, hash) {
+		t.Errorf("got hash %x want %x", got, hash)
+	}
+}
+
+func TestHostIp(t *testing.T) {
+	ip, _ := net.LookupIP("192.168.50.188")
+	t.Logf("%v", ip)
+	addrs, _ := net.LookupHost("192.168.50.188")
+	t.Logf("%v", addrs)
 }
