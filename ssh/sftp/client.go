@@ -61,11 +61,11 @@ func Connect(host string, port int, certKeyFile string, password string, usernam
 		return nil, err
 	}
 
-	addrs := strings.Split(sshClient.RemoteAddr().String(), ":")
-	if len(addrs) != 2 {
-		return nil, errors.New(fmt.Sprintf("the host[%s] is not standard ", sshClient.RemoteAddr()))
+	host, p, err := net.SplitHostPort(sshClient.RemoteAddr().String())
+	if err != nil {
+		return nil, fmt.Errorf("try to analyze the host[%s] error[%w]", sshClient.RemoteAddr().String(), err)
 	}
-	port, err = strconv.Atoi(addrs[1])
+	port, err = strconv.Atoi(p)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("the port of host[%s] is not integer", sshClient.RemoteAddr()))
 	}
@@ -73,7 +73,7 @@ func Connect(host string, port int, certKeyFile string, password string, usernam
 		username:    username,
 		certKeyFile: certKeyFile,
 		password:    password,
-		host:        addrs[0],
+		host:        host,
 		port:        port,
 		sshClient:   sshClient,
 		Client:      sftpClient,
@@ -106,11 +106,11 @@ func ConnectKnownHost(host string, port int, certKeyFile string, knownHostsFile 
 		return nil, err
 	}
 
-	addrs := strings.Split(sshClient.RemoteAddr().String(), ":")
-	if len(addrs) != 2 {
-		return nil, errors.New(fmt.Sprintf("the host[%s] is not standard ", sshClient.RemoteAddr()))
+	host, p, err := net.SplitHostPort(sshClient.RemoteAddr().String())
+	if err != nil {
+		return nil, fmt.Errorf("try to analyze the host[%s] error[%w]", sshClient.RemoteAddr().String(), err)
 	}
-	port, err = strconv.Atoi(addrs[1])
+	port, err = strconv.Atoi(p)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("the port of host[%s] is not integer", sshClient.RemoteAddr()))
 	}
@@ -118,7 +118,7 @@ func ConnectKnownHost(host string, port int, certKeyFile string, knownHostsFile 
 		username:       username,
 		certKeyFile:    certKeyFile,
 		knownHostsFile: knownHostsFile,
-		host:           addrs[0],
+		host:           host,
 		port:           port,
 		sshClient:      sshClient,
 		Client:         sftpClient,
