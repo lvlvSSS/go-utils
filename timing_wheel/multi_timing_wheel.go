@@ -47,14 +47,14 @@ func (wheel *TimingWheel) Run() error {
 	return nil
 }
 
-// location - like linux's timing wheel, l1 has 256 slots, l2~ln has 64 slots.
+// location - like linux's timing wheel, l0 has 256 slots, l1~ln has 64 slots.
 func location(duration uint64) (lvl, lvl_idx, idx int) {
-	const L1 = 0xff
+	const L0 = 0xff
 	const Ln = 0x3f
-	idx = int(duration & L1)
+	idx = int(duration & L0)
 	lvl = 0
 	for cur := duration >> 8; cur&Ln > 0 || cur > Ln; cur = cur >> 6 {
-		lvl_idx = int(cur&Ln) - 1
+		lvl_idx = int(cur & Ln)
 		lvl++
 	}
 	/*	cur := jiffy >> 8

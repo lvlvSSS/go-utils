@@ -23,6 +23,15 @@ func TestLevel(t *testing.T) {
 
 	lvl, lvl_idx, idx = location(4194451)
 	t.Logf("location : %d, idx in location : %d, idx: %d", lvl, lvl_idx, idx)
+
+	lvl, lvl_idx, idx = location(256*64*64*64 + 256*64 + 123)
+	t.Logf("location[256*64*64*64 + 256*64 + 123] -  lvl:%d, idx in location : %d, idx: %d", lvl, lvl_idx, idx)
+	round := 256
+	for i := 1; i < lvl; i++ {
+		round *= 64
+	}
+	lvl, lvl_idx, idx = location(256*64*64*64 + 256*64 + 123 - uint64(round))
+	t.Logf("location[%d = (256*64*64*64 + 256*64 + 123 - %d)] -  lvl:%d, idx in location : %d, idx: %d", 256*64*64*64+256*64+123-uint64(round), round, lvl, lvl_idx, idx)
 }
 
 func TestPointer(t *testing.T) {
@@ -61,7 +70,7 @@ func TestSlot_Append(t *testing.T) {
 	all := sync.WaitGroup{}
 	for i := 1; i <= 100; i++ {
 		node := &Node{
-			index:  i,
+			index:  uint64(i),
 			do:     nil,
 			depth:  0,
 			parent: nil,
@@ -83,7 +92,7 @@ func TestSlot_Append(t *testing.T) {
 	all.Wait()
 
 	// print the slot
-	set := make(map[int]interface{}, 100)
+	set := make(map[uint64]interface{}, 100)
 	l := list.New()
 	l.PushBack(slot.root)
 	for {

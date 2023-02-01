@@ -3,7 +3,7 @@ package timing_wheel
 import "fmt"
 
 type Node struct {
-	index int
+	index uint64
 	do    func()
 
 	// depth, parent, left, right, next - all used to iterate the tree that built by Nodes.
