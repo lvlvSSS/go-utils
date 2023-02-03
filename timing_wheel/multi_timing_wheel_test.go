@@ -5,6 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 	"unsafe"
 )
 
@@ -117,4 +118,38 @@ func TestSlot_Append(t *testing.T) {
 	} else {
 		t.Logf("SUCCESS")
 	}
+}
+
+func TestNodeNilPointer(t *testing.T) {
+	var p *Node = nil
+	l := list.New()
+	l.PushBack(p)
+	front := l.Front()
+	t.Logf("front is nil? %v", front == nil)
+	if front == nil {
+		return
+	}
+	node := front.Value.(*Node)
+	t.Logf("node is null? %v", node == nil)
+}
+
+func TestConcurrent(t *testing.T) {
+	i := 0
+	go func() {
+		//if i == 0 {
+
+		for {
+			//t.Logf("%v", i)
+			if i == 0 {
+				t.Logf("Zero")
+			}
+		}
+
+		//}
+
+	}()
+	for i = 1; i < 200; i++ {
+		time.Sleep(1 * time.Millisecond)
+	}
+
 }

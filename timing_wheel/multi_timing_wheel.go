@@ -1,3 +1,6 @@
+/*
+Unfinished package - timing wheel.
+*/
 package timing_wheel
 
 import (
@@ -9,10 +12,8 @@ import (
 
 var Unmodified = errors.New("state in timing wheel can't be modified now")
 
-type state uint32
-
 const (
-	unstarted state = 1 << iota
+	unstarted uint32 = 1 << iota
 	running
 	finished
 )
@@ -23,15 +24,16 @@ type TimingWheel struct {
 	jiffy time.Duration
 	next  *TimingWheel
 
-	state state
+	state uint32
 	lock  sync.Mutex
 }
 
-func (wheel *TimingWheel) DefineJiffy(dur time.Duration) error {
-	if state(atomic.LoadUint32((*uint32)(&wheel.state))) == unstarted {
+// Jiffy - define the duration.
+func (wheel *TimingWheel) Jiffy(dur time.Duration) error {
+	if atomic.LoadUint32(&wheel.state) == unstarted {
 		wheel.lock.Lock()
 		defer wheel.lock.Unlock()
-		if state(atomic.LoadUint32((*uint32)(&wheel.state))) == unstarted {
+		if atomic.LoadUint32(&wheel.state) == unstarted {
 			wheel.jiffy = dur
 		}
 		return nil
@@ -40,9 +42,22 @@ func (wheel *TimingWheel) DefineJiffy(dur time.Duration) error {
 }
 
 func (wheel *TimingWheel) Run() error {
+	start := time.Now()
+	var jiffies uint64 = 0
+	once := sync.Once{}
 	for {
+		curJiffies := uint64(time.Now().Sub(start).Nanoseconds() / int64(wheel.jiffy))
+		if curJiffies < jiffies {
+			time.Sleep(wheel.jiffy / 4)
+			continue
+		} else if curJiffies > jiffies {
+			jiffies++
+			once = sync.Once{}
+		}
+		// business codes here:
+		once.Do(func() {
 
-		time.Sleep(wheel.jiffy / 4)
+		})
 	}
 	return nil
 }
